@@ -16,7 +16,7 @@ export async function main(ns) {
     //If ports are needed, connect to the server, check to see if any port hacking files exist
     //Run all port hacking files that exist
     //Run NUKE.exe
-
+    //fix needed
     while (
         servers.filter(
             (s) =>
