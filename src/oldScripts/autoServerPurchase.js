@@ -1,6 +1,6 @@
 /** @param {NS} ns */
 export async function main(ns) {
-    let ram = 64;
+    let ram = 1024;
     while (true) {
         await ns.sleep(60000);
         for (let i = 0; i < ns.getPurchasedServerLimit(); i++) {
