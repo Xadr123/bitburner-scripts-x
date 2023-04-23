@@ -2,7 +2,6 @@
 export async function main(ns) {
     let ram = 1024;
     while (true) {
-        await ns.sleep(60000);
         for (let i = 0; i < ns.getPurchasedServerLimit(); i++) {
             if (
                 ns.getServerMoneyAvailable("home") >=
@@ -11,5 +10,6 @@ export async function main(ns) {
                 ns.purchaseServer("worker-" + i, ram);
             }
         }
+        break;
     }
 }

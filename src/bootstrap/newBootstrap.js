@@ -1,6 +1,7 @@
 /** @param {NS} ns */
 export async function main(ns) {
     let servers = JSON.parse(ns.read("serverList.txt"));
+    ns.disableLog("getHackingLevel");
     let scriptFiles = [
         "/bootstrap/newHack.js",
         "/bootstrap/newWeaken.js",
@@ -18,169 +19,115 @@ export async function main(ns) {
         //         !s.hasAdminRights
         // ).length >= 1
     ) {
-        let hackTarget = "iron-gym";
-        for (let server of servers) {
+        let hackTarget = servers
+            .filter(
+                (s) =>
+                    s.hasAdminRights &&
+                    s.requiredHackingSkill <= ns.getHackingLevel() &&
+                    s.openPortCount >= s.numOpenPortsRequired
+            )
+            .sort((a, b) => (a.moneyMax > b.moneyMax ? -1 : 1))[0].hostname;
+        await ns.sleep(1000);
+        for (let server of servers.sort((a, b) =>
+            a.maxRam > b.maxRam ? -1 : 1
+        )) {
             let serverPosition = servers.findIndex(
                 (s) => s.hostname == server.hostname
             );
-            ns.tprint("Target: ", server.hostname);
-            await ns.sleep(20);
-            if (server.numOpenPortsRequired > 0 && server.openPortCount == 0) {
+            if (server.numOpenPortsRequired > 0) {
+                ns.print("Target: ", server.hostname);
                 if (ns.fileExists("BruteSSH.exe") && !server.sshPortOpen) {
-                    ns.tprint(
+                    ns.print(
                         server.openPortCount,
                         " open ports, accessing new ports..."
                     );
-                    // await ns.sleep(500);
                     ns.brutessh(server.hostname);
                     servers[serverPosition].sshPortOpen = true;
                     servers[serverPosition].openPortCount++;
-                    ns.tprint("SSH port opened on ", server.hostname);
-                    // await ns.sleep(500);
+                    ns.print("SSH port opened on ", server.hostname);
                 }
                 if (ns.fileExists("FTPCrack.exe") && !server.ftpPortOpen) {
                     ns.ftpcrack(server.hostname);
                     servers[serverPosition].ftpPortOpen = true;
                     servers[serverPosition].openPortCount++;
-                    ns.tprint("FTP port opened on ", server.hostname);
+                    ns.print("FTP port opened on ", server.hostname);
                 }
                 if (ns.fileExists("relaySMTP.exe") && !server.smtpPortOpen) {
                     ns.relaysmtp(server.hostname);
                     servers[serverPosition].smtpPortOpen = true;
                     servers[serverPosition].openPortCount++;
-                    ns.tprint("SMTP port opened on ", server.hostname);
+                    ns.print("SMTP port opened on ", server.hostname);
                 }
                 if (ns.fileExists("HTTPWorm.exe") && !server.httpPortOpen) {
                     ns.httpworm(server.hostname);
                     servers[serverPosition].httpPortOpen = true;
                     servers[serverPosition].openPortCount++;
-                    ns.tprint("HTTP port opened on ", server.hostname);
+                    ns.print("HTTP port opened on ", server.hostname);
                 }
                 if (ns.fileExists("SQLInject.exe") && !server.sqlPortOpen) {
                     ns.sqlinject(server.hostname);
                     servers[serverPosition].sqlPortOpen = true;
                     servers[serverPosition].openPortCount++;
-                    ns.tprint("SQL port opened on ", server.hostname);
+                    ns.print("SQL port opened on ", server.hostname);
                 }
-            }
-            if (
+                ns.write("serverList.txt", JSON.stringify(servers), "w");
+            } else if (
                 server.requiredHackingSkill <= ns.getHackingLevel() &&
-                servers[serverPosition].openPortCount ==
-                    server.numOpenPortsRequired
+                !servers[serverPosition].hasAdminRights &&
+                server.numOpenPortsRequired <= server.openPortCount
             ) {
                 ns.nuke(server.hostname);
                 servers[serverPosition].hasAdminRights = true;
-                ns.tprint("Server accessed, injecting and executing scripts.");
-                // await ns.sleep(500);
+                ns.write("serverList.txt", JSON.stringify(servers), "w");
+            }
+            if (
+                server.requiredHackingSkill <= ns.getHackingLevel() &&
+                servers[serverPosition].hasAdminRights
+            ) {
+                ns.print("Server accessed, injecting and executing scripts.");
                 ns.scp(scriptFiles, server.hostname, "home");
                 let freeRam = server.maxRam - server.ramUsed;
-                // ns.tprint(freeRam);
-                // ns.tprint(weakenRam);
-                // ns.tprint(freeRam / weakenRam);
                 if (
-                    ns.getServerMinSecurityLevel(hackTarget) + 4 <
+                    ns.getServerMinSecurityLevel(hackTarget) + 4 <=
                         ns.getServerSecurityLevel(hackTarget) &&
                     freeRam >= weakenRam
                 ) {
-                    let threadCount = Math.floor(server.maxRam / weakenRam);
-                    ns.tprint("Executing weaken on ", server.hostname);
-                    // await ns.sleep(500);
+                    let threadCount = Math.floor(freeRam / weakenRam);
+                    ns.print("Executing weaken on ", server.hostname);
                     ns.exec(
                         "/bootstrap/newWeaken.js",
                         server.hostname,
                         threadCount,
                         hackTarget
                     );
-                    ns.tprint("Moving to next target...");
-                    // await ns.sleep(500);
+                    ns.print("Moving to next target...");
                 } else if (
                     ns.getServerMoneyAvailable(hackTarget) <
                         ns.getServerMaxMoney(hackTarget) * 0.8 &&
                     freeRam >= growRam
                 ) {
-                    let threadCount = Math.floor(server.maxRam / growRam);
-                    ns.tprint("Executing grow on ", server.hostname);
-                    // await ns.sleep(500);
+                    let threadCount = Math.floor(freeRam / growRam);
+                    ns.print("Executing grow on ", server.hostname);
                     ns.exec(
                         "/bootstrap/newGrow.js",
                         server.hostname,
                         threadCount,
                         hackTarget
                     );
-                    ns.tprint("Moving to next target...");
-                    // await ns.sleep(500);
+                    ns.print("Moving to next target...");
                 } else if (freeRam >= hackRam) {
-                    let threadCount = Math.floor(server.maxRam / hackRam);
-                    ns.tprint("Executing hack on ", server.hostname);
-                    // await ns.sleep(500);
+                    let threadCount = Math.floor(freeRam / hackRam);
+                    ns.print("Executing hack on ", server.hostname);
                     ns.exec(
                         "/bootstrap/newHack.js",
                         server.hostname,
                         threadCount,
                         hackTarget
                     );
-                    ns.tprint("Moving to next target...");
-                    // await ns.sleep(500);
-                }
-            } else if (server.hasAdminRights) {
-                ns.tprint(
-                    server.hostname,
-                    " has already been accessed, re-executing scripts."
-                );
-                // await ns.sleep(500);
-                servers[serverPosition].hasAdminRights = true;
-                ns.scp(scriptFiles, server.hostname, "home");
-                let freeRam = server.maxRam - server.ramUsed;
-                // ns.tprint(freeRam);
-                // ns.tprint(weakenRam);
-                // ns.tprint(freeRam / weakenRam);
-                if (
-                    ns.getServerMinSecurityLevel(hackTarget) + 4 <
-                        ns.getServerSecurityLevel(hackTarget) &&
-                    freeRam >= weakenRam
-                ) {
-                    let threadCount = Math.floor(server.maxRam / weakenRam);
-                    ns.tprint("Executing weaken on ", server.hostname);
-                    // await ns.sleep(500);
-                    ns.exec(
-                        "/bootstrap/newWeaken.js",
-                        server.hostname,
-                        threadCount,
-                        hackTarget
-                    );
-                    ns.tprint("Moving to next target...");
-                    // await ns.sleep(500);
-                } else if (
-                    ns.getServerMoneyAvailable(hackTarget) <
-                        ns.getServerMaxMoney(hackTarget) * 0.8 &&
-                    freeRam >= growRam
-                ) {
-                    let threadCount = Math.floor(server.maxRam / growRam);
-                    ns.tprint("Executing grow on ", server.hostname);
-                    // await ns.sleep(500);
-                    ns.exec(
-                        "/bootstrap/newGrow.js",
-                        server.hostname,
-                        threadCount,
-                        hackTarget
-                    );
-                    ns.tprint("Moving to next target...");
-                    // await ns.sleep(500);
-                } else if (freeRam >= hackRam) {
-                    let threadCount = Math.floor(server.maxRam / hackRam);
-                    ns.tprint("Executing hack on ", server.hostname);
-                    // await ns.sleep(500);
-                    ns.exec(
-                        "/bootstrap/newHack.js",
-                        server.hostname,
-                        threadCount,
-                        hackTarget
-                    );
-                    ns.tprint("Moving to next target...");
-                    // await ns.sleep(500);
+                    ns.print("Moving to next target...");
                 }
             } else {
-                ns.tprint(server.hostname, " cannot be accessed at this time.");
+                ns.print(server.hostname, " cannot be accessed at this time.");
             }
         }
     }
