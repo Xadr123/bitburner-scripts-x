@@ -1,6 +1,6 @@
 /** @param {NS} ns */
 export async function main(ns) {
-    let ram = 1024;
+    let ram = 8192;
     while (true) {
         for (let i = 0; i < ns.getPurchasedServerLimit(); i++) {
             if (
@@ -10,6 +10,7 @@ export async function main(ns) {
                 ns.purchaseServer("worker-" + i, ram);
             }
         }
+        await ns.sleep(20);
         break;
     }
 }

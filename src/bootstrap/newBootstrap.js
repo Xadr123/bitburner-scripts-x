@@ -34,7 +34,7 @@ export async function main(ns) {
             let serverPosition = servers.findIndex(
                 (s) => s.hostname == server.hostname
             );
-            if (server.numOpenPortsRequired > 0) {
+            if (server.numOpenPortsRequired >= server.openPortCount) {
                 ns.print("Target: ", server.hostname);
                 if (ns.fileExists("BruteSSH.exe") && !server.sshPortOpen) {
                     ns.print(
@@ -70,15 +70,11 @@ export async function main(ns) {
                     servers[serverPosition].openPortCount++;
                     ns.print("SQL port opened on ", server.hostname);
                 }
-                ns.write("serverList.txt", JSON.stringify(servers), "w");
-            } else if (
-                server.requiredHackingSkill <= ns.getHackingLevel() &&
-                !servers[serverPosition].hasAdminRights &&
-                server.numOpenPortsRequired <= server.openPortCount
-            ) {
-                ns.nuke(server.hostname);
-                servers[serverPosition].hasAdminRights = true;
-                ns.write("serverList.txt", JSON.stringify(servers), "w");
+                if (server.numOpenPortsRequired <= server.openPortCount) {
+                    ns.nuke(server.hostname);
+                    servers[serverPosition].hasAdminRights = true;
+                    ns.write("serverList.txt", JSON.stringify(servers), "w");
+                }
             }
             if (
                 server.requiredHackingSkill <= ns.getHackingLevel() &&
