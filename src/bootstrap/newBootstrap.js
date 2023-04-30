@@ -27,7 +27,6 @@ export async function main(ns) {
                     s.openPortCount >= s.numOpenPortsRequired
             )
             .sort((a, b) => (a.moneyMax > b.moneyMax ? -1 : 1))[0].hostname;
-        await ns.sleep(1000);
         for (let server of servers.sort((a, b) =>
             a.maxRam > b.maxRam ? -1 : 1
         )) {
@@ -82,37 +81,10 @@ export async function main(ns) {
             ) {
                 ns.print("Server accessed, injecting and executing scripts.");
                 ns.scp(scriptFiles, server.hostname, "home");
-                let freeRam = server.maxRam - server.ramUsed;
-                if (
-                    ns.getServerMinSecurityLevel(hackTarget) + 4 <=
-                        ns.getServerSecurityLevel(hackTarget) &&
-                    freeRam >= weakenRam
-                ) {
-                    let threadCount = Math.floor(freeRam / weakenRam);
-                    ns.print("Executing weaken on ", server.hostname);
-                    ns.exec(
-                        "/bootstrap/newWeaken.js",
-                        server.hostname,
-                        threadCount,
-                        hackTarget
-                    );
-                    ns.print("Moving to next target...");
-                } else if (
-                    ns.getServerMoneyAvailable(hackTarget) <
-                        ns.getServerMaxMoney(hackTarget) * 0.8 &&
-                    freeRam >= growRam
-                ) {
-                    let threadCount = Math.floor(freeRam / growRam);
-                    ns.print("Executing grow on ", server.hostname);
-                    ns.exec(
-                        "/bootstrap/newGrow.js",
-                        server.hostname,
-                        threadCount,
-                        hackTarget
-                    );
-                    ns.print("Moving to next target...");
-                } else if (freeRam >= hackRam) {
-                    let threadCount = Math.floor(freeRam / hackRam);
+                let freeRam = server.maxRam - server.ramUsed - 8;
+                let batchRam = Math.floor(freeRam / 3);
+                if (freeRam >= hackRam) {
+                    let threadCount = Math.floor(batchRam / hackRam);
                     ns.print("Executing hack on ", server.hostname);
                     ns.exec(
                         "/bootstrap/newHack.js",
@@ -121,6 +93,27 @@ export async function main(ns) {
                         hackTarget
                     );
                     ns.print("Moving to next target...");
+                }
+                if (freeRam >= growRam) {
+                    let threadCount = Math.floor(batchRam / growRam);
+                    ns.print("Executing grow on ", server.hostname);
+                    ns.exec(
+                        "/bootstrap/newGrow.js",
+                        server.hostname,
+                        threadCount,
+                        hackTarget
+                    );
+                }
+                if (freeRam >= weakenRam) {
+                    let threadCount = Math.floor(batchRam / weakenRam);
+                    ns.print("Executing weaken on ", server.hostname);
+                    ns.exec(
+                        "/bootstrap/newWeaken.js",
+                        server.hostname,
+                        threadCount,
+                        hackTarget
+                    );
+                    await ns.sleep(100);
                 }
             } else {
                 ns.print(server.hostname, " cannot be accessed at this time.");
